@@ -1,5 +1,17 @@
 import 'package:flutter/material.dart';
 
+class Review { //definisco la classe e gli elementi popolanti essa
+  String title; //titolo stringa
+  String? comment; //commento opzionale quindi string?
+  int rating; //recensione da 1 a 5
+
+  Review({
+    required this.title,
+    this.comment,
+    required this.rating,
+  });
+}
+
 void main() {
   runApp(const MyApp());
 }
@@ -7,116 +19,152 @@ void main() {
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 41, 104, 62)),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
+      home: const HomeScreen(), // qui aggiungo il widget principale alla mia MyApp quindi costruisco un widget sopra
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key}); // Costruttore del widget con chiave opzionale
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<HomeScreen> createState() => _HomeScreenState(); // Crea lo stato associato a questo widget
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _HomeScreenState extends State<HomeScreen> {
+  List<Review> reviews = [];// Lista che conterrà tutte le recensioni
+  
 
-  void _incrementCounter() {
+  Future<void> _openForm({Review? review, int? index}) async { // Funzione asincrona che apre un form per creare o modificare una review
+  final data = await showDialog<Map<String , dynamic>>(
+    context: context,
+    builder: (_) => AlertDialog( // Costruisce un AlertDialog 
+      contentPadding: EdgeInsets.zero,
+      content: SizedBox(
+        width: double.maxFinite,
+        child: ReviewFormScreen(existing: review),
+      ),
+    ),
+  );
+// Controlla se i dati restituiti dal dialog non sono null
+  if (data != null) {
+    Review newReview = Review(
+      title: data['title'], // Imposta il titolo della review
+      comment: data['comment'], //imposta il commento della review
+      rating: data['rating'], //imposta rating 
+    );
+
     setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+      if (review == null) { // Se 'review' è null, significa che stiamo creando una nuova review
+        reviews.add(newReview); // Aggiunge la nuova review alla lista delle recensioni
+      } else {
+        reviews[index!] = newReview; // Sovrascrive la review all'indice specificato
+      }
     });
   }
+}
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
+    return Scaffold(  // Struttura principale della schermata
+      appBar: AppBar(title: const Text("MyFork")), // Titolo della barra superiore
+      body: ListView.builder( // costruisce lista di elementi
+        itemCount: reviews.length, // Numero di elementi nella lista basato sul numero di review
+        itemBuilder: (context, i) { // Costruisce ogni elemento che creiamo 
+          return ListTile( // Widget singolo per ogni review che creiamo su home page
+            title: Text(reviews[i].title), //mostra titolo sulla home page 
+              trailing: IconButton(
+              icon: const Icon(Icons.edit), //icona per la modifica
+              onPressed: () => _openForm(review: reviews[i], index: i),
+            ),
+          );
+        },
       ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
+      floatingActionButton: FloatingActionButton( // Al click apre il form per aggiungere una nuova review (bottone in basso a SX)
+        onPressed: () => _openForm(),
+        child: const Icon(Icons.add),
+      ),
+    );
+  }
+}
+
+// Form per inserimento/modifica recensione
+class ReviewFormScreen extends StatefulWidget { // Widget per il form di inserimento o modifica di una recensione
+  final Review? existing;
+
+  const ReviewFormScreen({super.key, this.existing});
+
+  @override
+  State<ReviewFormScreen> createState() => _ReviewFormScreenState();
+}
+
+class _ReviewFormScreenState extends State<ReviewFormScreen> { //gestire lo stato del form
+  late TextEditingController _titleController; //permette di leggere questi due campi affiche possa mostrarli nella home
+  late TextEditingController _commentController;
+  int _rating = 1;
+
+  @override
+  void initState() { 
+    super.initState(); 
+    _titleController =
+        TextEditingController(text: widget.existing?.title ?? ''); //Un controller per un campo di testo modificabile.
+    _commentController =
+        TextEditingController(text: widget.existing?.comment ?? ''); //Ogni volta che l'utente modifica un campo di testo con un TextEditingController associato , il campo di testo aggiorna il valore e il controller invia una notifica ai suoi listener. I listener possono quindi leggere il testo e le proprietà di selezione per sapere cosa ha digitato l'utente o come è stata aggiornata la selezione.
+    _rating = widget.existing?.rating ?? 1;
+  }
+
+
+
+ @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    body: Padding(
+      padding: const EdgeInsets.all(20.10), //modificabile UI
+      child: Form(
         child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
+          children: [
+            TextFormField(
+              controller: _titleController,
+              decoration: const InputDecoration(labelText: 'Title'), //inserisce come titoletto nella barra 'title' 
+            ),
+            TextFormField(
+              controller: _commentController,
+              decoration: const InputDecoration(labelText: 'Comment'),//inserisce come titoletto nella barra 'Comment'
+            ),
+            DropdownButtonFormField<int>(
+              items: List.generate( // genera una lista di 5 item 
+                5,
+                (index) => DropdownMenuItem(
+                  value: index + 1,     // Imposta il valore del singolo elemento della tendina (da 1 a 5)
+                  child: Text('${index + 1}'), // Mostra il numero come testo nella tendina ed è cliccabile 
+                ),
+              ),
+              onChanged: (value) => setState(() {
+                _rating = value!; // Aggiorna la variabile _rating con il valore selezionato ( sulla tendina)
+              }),
+              decoration: const InputDecoration(labelText: 'Rating'),
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {     // riscrive i dati se si clicca si save 
+                Navigator.pop(context, {
+                  'title': _titleController.text,
+                  'comment': _commentController.text,
+                  'rating': _rating,
+                });
+              },
+              child: const Text('Save'),
             ),
           ],
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
-    );
-  }
-}
+    ),
+  );
+}}
